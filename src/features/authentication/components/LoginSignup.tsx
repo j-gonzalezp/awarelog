@@ -96,9 +96,7 @@ const LoginSignup: React.FC = () => {
         </CardContent>
         <CardFooter>
           <Button onClick={handleSignOut} disabled={isSubmitting} className="w-full">
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Cerrar Sesión
-          </Button>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}</Button>
         </CardFooter>
       </Card>
     );
@@ -154,9 +152,7 @@ const LoginSignup: React.FC = () => {
           </CardContent>
           <CardFooter>
             <Button onClick={() => handleSubmit('login')} disabled={isSubmitting} className="w-full">
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Iniciar Sesión
-            </Button>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}</Button>
           </CardFooter>
         </Card>
       </TabsContent>
@@ -198,9 +194,7 @@ const LoginSignup: React.FC = () => {
           </CardContent>
           <CardFooter>
             <Button onClick={() => handleSubmit('signup')} disabled={isSubmitting} className="w-full">
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Registrarse
-            </Button>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}</Button>
           </CardFooter>
         </Card>
       </TabsContent>

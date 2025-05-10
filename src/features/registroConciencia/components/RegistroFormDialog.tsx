@@ -1,5 +1,5 @@
 // src/features/registroConciencia/components/RegistroFormDialog.tsx
-"use client";
+// "use client"; // Removed
 
 import * as React from "react";
 import { useState } from "react";
@@ -28,6 +28,8 @@ import {
 import { Input } from "../../../components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "../../../components/ui/popover";
 import { Calendar } from "../../../components/ui/calendar";
+import { Checkbox } from "../../../components/ui/checkbox";
+import { TagsInput } from '../../../components/ui/tags-input';
 import { CalendarIcon } from "lucide-react";
 import { cn, formatFriendlyDate } from "../../../lib/utils";
 import { Textarea } from "../../../components/ui/textarea";
@@ -39,18 +41,25 @@ import {
   SelectValue,
 } from "../../../components/ui/select";
 
-import { toast } from 'sonner'; // Correcta importación de sonner
+import { toast } from 'sonner';
 
 import { RegistroDeConciencia, EstadoRegistro } from "../../../types/registro";
-import { addRegistro } from "../services/registroService";
+// Updated import path for addRegistro
+import { addRegistro } from "../services/coreRegistroService";
 
 const formSchema = z.object({
   descripcion: z.string().min(1, { message: "La descripción es requerida." }),
   estado: z.enum(['Planificado', 'En Progreso', 'Realizado', 'Adaptado / Saltado']),
   tiempo_inicio: z.date().nullable().optional(),
-  foco_agentes_texto_simple: z.string().nullable().optional(),
-  etiquetas_texto_simple: z.string().nullable().optional(),
-  notas_texto_simple: z.string().nullable().optional(),
+  foco_agentes: z.array(z.string()).nullable().optional(),
+  etiquetas: z.array(z.string()).nullable().optional(),
+  lugar_texto_simple: z.string().nullable().optional(),
+  duracion_estimada_minutos: z.number().int().nullable().optional(),
+  sin_tiempo_especifico: z.boolean().optional(),
+  sensacion_kinestesica: z.string().nullable().optional(), // ADDED
+  prioridad: z.number().int().nullable().optional().refine(val => val === null || (typeof val === 'number' && val >= 0 && val <= 10), { // Adjusted refinement
+    message: "La prioridad debe ser un número entero entre 0 y 10.",
+  }),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -62,39 +71,62 @@ interface RegistroFormDialogProps {
 
 export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFormDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Added isSubmitting state
 
-  const form = useForm<FormData>({
+  const form = useForm<FormData>({ // Corrected formatting around this call
     resolver: zodResolver(formSchema),
     defaultValues: {
       descripcion: "",
       estado: "Realizado" as EstadoRegistro,
       tiempo_inicio: null,
-      foco_agentes_texto_simple: "",
-      etiquetas_texto_simple: "",
-      notas_texto_simple: "",
+      foco_agentes: [],
+      etiquetas: [],
+      lugar_texto_simple: "",
+      duracion_estimada_minutos: null,
+      sin_tiempo_especifico: false,
+      sensacion_kinestesica: "",
+      prioridad: null, // Reset priority on open
     },
   });
 
+  const sinTiempoEspecificoWatched = form.watch("sin_tiempo_especifico");
+  const estadoWatched = form.watch("estado"); // Watch the estado field
+
+  React.useEffect(() => {
+    const sinTiempoMarcado = form.getValues("sin_tiempo_especifico");
+    if (sinTiempoMarcado) {
+      form.setValue("tiempo_inicio", null, { shouldValidate: true });
+    }
+  }, [form.watch("sin_tiempo_especifico"), form]);
+
   const handleSetAhora = () => {
+    if (sinTiempoEspecificoWatched) return;
     const now = new Date();
     form.setValue("tiempo_inicio", now, { shouldValidate: true });
-    // Corregido: Usar el primer argumento para el mensaje principal/título
     toast.success("Tiempo de inicio fijado a la hora actual.");
-    // Si necesitas un subtítulo, usa la opción `description`:
-    // toast.success("Tiempo Establecido", { description: "El inicio se fijó a la hora actual." });
   };
 
   async function onSubmit(values: FormData) {
     console.log("Formulario enviado:", values);
-    const registroParaGuardar: Partial<RegistroDeConciencia> = { ...values };
+    
+    setIsSubmitting(true); // Set submitting state
+
+    const registroParaGuardar: Partial<RegistroDeConciencia> = {
+      descripcion: values.descripcion,
+      estado: values.estado,
+      tiempo_inicio: values.tiempo_inicio,
+      foco_agentes: (values.foco_agentes && values.foco_agentes.length > 0) ? values.foco_agentes : null,
+      etiquetas: (values.etiquetas && values.etiquetas.length > 0) ? values.etiquetas : null,
+      lugar_texto_simple: values.lugar_texto_simple || null,
+      duracion_estimada_minutos: values.duracion_estimada_minutos === undefined || values.duracion_estimada_minutos === null ? null : Number(values.duracion_estimada_minutos),
+      sensacion_kinestesica: values.sensacion_kinestesica || null,
+      prioridad: values.estado === 'Planificado' ? values.prioridad : null, // Include priority only if state is Planificado
+    };
 
     try {
       const nuevoRegistro = await addRegistro(registroParaGuardar);
       console.log("Registro guardado:", nuevoRegistro);
-      // Corregido:
       toast.success("Momento de conciencia guardado correctamente.");
-      // O si prefieres título y descripción:
-      // toast.success("¡Éxito!", { description: "Momento de conciencia guardado correctamente." });
       setIsOpen(false);
       form.reset();
       if (onRegistroGuardado) {
@@ -102,11 +134,10 @@ export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFor
       }
     } catch (error) {
       console.error("Error al guardar el registro:", error);
-      // Corregido:
       const errorMessage = error instanceof Error ? error.message : "No se pudo guardar. Intenta de nuevo.";
       toast.error(errorMessage);
-      // O si prefieres título y descripción:
-      // toast.error("Error al Guardar", { description: errorMessage });
+    } finally {
+      setIsSubmitting(false); // Reset submitting state
     }
   }
 
@@ -116,10 +147,15 @@ export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFor
         descripcion: "",
         estado: "Realizado" as EstadoRegistro,
         tiempo_inicio: null,
-        foco_agentes_texto_simple: "",
-        etiquetas_texto_simple: "",
-        notas_texto_simple: "",
+        foco_agentes: [],
+        etiquetas: [],
+        lugar_texto_simple: "",
+        duracion_estimada_minutos: null,
+        sin_tiempo_especifico: false,
+        sensacion_kinestesica: "",
+        prioridad: null, // Reset priority on open
       });
+       setIsSubmitting(false); // Also reset submitting state on open
     }
     setIsOpen(openState);
   };
@@ -129,14 +165,13 @@ export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFor
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[480px] bg-background">
         <DialogHeader>
-          <DialogTitle>Añadir Momento de Conciencia</DialogTitle>
+          <DialogTitle>Añadir Momento de Conciencia</DialogTitle> {/* Updated title */}
           <DialogDescription>
             Registra lo que fluye por tu conciencia. Completa los detalles a continuación.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-            {/* ... resto de los FormFields sin cambios ... */}
             <FormField
               control={form.control}
               name="descripcion"
@@ -177,7 +212,57 @@ export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFor
                 </FormItem>
               )}
             />
+
+            {/* Priority Field (Visible only if Estado is Planificado) */}
+            {estadoWatched === 'Planificado' && (
+              <FormField
+                control={form.control}
+                name="prioridad"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Prioridad (Opcional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Ej: 5 (0-10)"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "") {
+                            field.onChange(null);
+                          } else {
+                            const num = parseInt(value, 10);
+                            field.onChange(isNaN(num) ? null : num);
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             
+            <FormField
+              control={form.control}
+              name="sin_tiempo_especifico"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center space-x-2 pt-2">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      id="sin_tiempo_especifico"
+                    />
+                  </FormControl>
+                  <FormLabel htmlFor="sin_tiempo_especifico" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Sin tiempo específico
+                  </FormLabel>
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="tiempo_inicio"
@@ -188,10 +273,12 @@ export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFor
                     <PopoverTrigger asChild>
                       <Button
                         variant={"outline"}
-                        type="button" 
+                        type="button"
+                        disabled={sinTiempoEspecificoWatched || isSubmitting}
                         className={cn(
                           "w-full justify-start text-left font-normal",
-                          !field.value && "text-muted-foreground"
+                          !field.value && "text-muted-foreground",
+                          sinTiempoEspecificoWatched && "opacity-50 cursor-not-allowed"
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -235,12 +322,72 @@ export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFor
 
             <FormField
               control={form.control}
-              name="foco_agentes_texto_simple"
+              name="lugar_texto_simple"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Lugar (Opcional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Oficina, Casa..." {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="duracion_estimada_minutos"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Duración Estimada (minutos) (Opcional)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      placeholder="Ej: 30" 
+                      {...field} 
+                      value={field.value ?? ""} 
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === "") {
+                          field.onChange(null);
+                        } else {
+                          const num = parseInt(value, 10);
+                          field.onChange(isNaN(num) ? null : num);
+                        }
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="sensacion_kinestesica"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sensación / Emoción (Opcional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ej: Calma, Estresado, Curioso..." {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="foco_agentes"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Foco / Agentes (Opcional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Yo, Perro, Libro..." {...field} value={field.value ?? ""} />
+                    <TagsInput
+                      placeholder="Yo, Perro, Libro..."
+                      value={field.value ?? []}
+                      onChange={field.onChange}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -249,38 +396,33 @@ export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFor
 
             <FormField
               control={form.control}
-              name="etiquetas_texto_simple"
+              name="etiquetas"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Etiquetas (Opcional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="#trabajo, #idea..." {...field} value={field.value ?? ""} />
+                    <TagsInput
+                      placeholder="#trabajo, #idea..."
+                      value={field.value ?? []}
+                      onChange={field.onChange}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            <FormField
-              control={form.control}
-              name="notas_texto_simple"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notas (Opcional)</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Notas adicionales..." {...field} value={field.value ?? ""} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {/* ... fin de los FormFields ... */}
+            
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleSetAhora}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleSetAhora}
+                disabled={sinTiempoEspecificoWatched || isSubmitting}
+              >
                 Ahora
               </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Guardando..." : "Guardar Registro"}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Guardando..." : "Guardar Registro"}
               </Button>
             </DialogFooter>
           </form>
@@ -288,4 +430,6 @@ export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFor
       </DialogContent>
     </Dialog>
   );
-}
+};
+
+export default RegistroFormDialog;

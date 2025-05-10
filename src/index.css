@@ -98,7 +98,6 @@
 [data-slot="dialog-content"] {
   background-color: white;
 }
-
 .dark [data-slot="dialog-content"] {
   background-color: hsl(240 10% 3.9%);
 }
@@ -107,7 +106,6 @@
 .bg-background {
   background-color: hsl(var(--background));
 }
-
 .dark .bg-background {
   background-color: hsl(var(--background));
 }
@@ -130,7 +128,6 @@
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
-
 .dark [data-slot="dialog-content"],
 .dark .rdp,
 .dark [data-radix-popper-content-wrapper],
@@ -147,4 +144,175 @@
   opacity: 1;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+
+/* Estilos para el tema de la aplicación Aware */
+@layer base {
+  /* Color variables basados en la guía de diseño */
+  :root {
+    /* Primary colors */
+    --teal-50: #EEF5F5;
+    --teal-600: #2A6365;
+    --teal-700: #234F50;
+    --sage-300: #B7C4A7;
+    --earth-600: #8C7363;
+    --sky-300: #C4D7E0;
+    --orange-600: #E07A5F;
+    --rice-50: #F8F4E3;
+    --ink-800: #343438;
+    
+    /* Functional colors */
+    --success: #6B9080;
+    --warning: #D4B483;
+    --error: #C1666B;
+    
+    /* Radii */
+    --radius-asymmetric-sm: 5px 2px 5px 2px;
+    --radius-asymmetric: 8px 3px 8px 3px;
+    --radius-asymmetric-lg: 12px 5px 12px 5px;
+    
+    /* Shadows */
+    --shadow-soft: 0 2px 8px rgba(42, 99, 101, 0.15);
+    --shadow-softer: 0 6px 15px rgba(0, 0, 0, 0.05);
+    
+    /* Transitions */
+    --transition-water: cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+}
+
+/* Custom components styling from Aware Design Guide */
+.rounded-asymmetric-sm {
+  border-radius: var(--radius-asymmetric-sm);
+}
+
+.rounded-asymmetric {
+  border-radius: var(--radius-asymmetric);
+}
+
+.rounded-asymmetric-lg {
+  border-radius: var(--radius-asymmetric-lg);
+}
+
+.shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+.shadow-softer {
+  box-shadow: var(--shadow-softer);
+}
+
+.ease-water {
+  transition-timing-function: var(--transition-water);
+}
+
+.tracking-relaxed {
+  letter-spacing: 0.02em;
+}
+
+/* Textures y fondos específicos */
+.bg-washi {
+  background-image: url('data:image/svg+xml,%3Csvg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"%3E%3Cpath d="M0 0h100v15L0 35z" fill="%232A6365" fill-opacity="0.03"/%3E%3C/svg%3E');
+}
+
+.bg-bamboo {
+  background-image: url('data:image/svg+xml,%3Csvg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"%3E%3Cpath d="M2 2h2v20H2V2zm6 0h2v20H8V2zm6 0h2v20h-2V2zm6 0h2v20h-2V2z" fill="%232A6365" fill-opacity="0.05"/%3E%3C/svg%3E');
+}
+
+.bg-ripple {
+  background-image: url('data:image/svg+xml,%3Csvg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"%3E%3Ccircle cx="50" cy="50" r="40" stroke="%232A6365" stroke-width="0.5" fill="none" stroke-opacity="0.1"/%3E%3Ccircle cx="50" cy="50" r="30" stroke="%232A6365" stroke-width="0.5" fill="none" stroke-opacity="0.1"/%3E%3Ccircle cx="50" cy="50" r="20" stroke="%232A6365" stroke-width="0.5" fill="none" stroke-opacity="0.1"/%3E%3C/svg%3E');
+}
+
+.bg-gradient-teal {
+  background-image: linear-gradient(to right, #2A6365, #234f50);
+}
+
+/* Animaciones personalizadas */
+@keyframes ripple {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.animate-ripple {
+  animation: ripple 1.5s ease-out infinite;
+}
+
+.animate-breathe {
+  animation: breathe 6s ease-in-out infinite;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Estilos para fondos tipo papel y texturas naturales */
+.bg-paper-texture {
+  background-image: url('data:image/svg+xml,%3Csvg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"%3E%3Cpath d="M0 100c20-10 40-10 50-30 10-20 30-30 50-30v60H0z" fill="%23FAFAF2" fill-opacity="0.4"/%3E%3C/svg%3E');
+  background-size: 600px;
+  background-position: center;
+}
+
+/* Estilos específicos para componentes UI de Aware */
+.btn-asymmetric {
+  border-radius: var(--radius-asymmetric);
+  transition: all 300ms var(--transition-water);
+  box-shadow: var(--shadow-soft);
+}
+
+.btn-asymmetric:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-softer);
+}
+
+.input-underline {
+  border-bottom: 1px solid var(--earth-600);
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  border-radius: 0;
+  transition: all 300ms var(--transition-water);
+  letter-spacing: 0.02em;
+}
+
+.input-underline:focus {
+  box-shadow: none;
+  border-color: var(--teal-600);
+  border-bottom-width: 2px;
+}
+
+/* Estilos para el tema ShadCN personalizado */
+.dialog-content-aware {
+  border-radius: var(--radius-asymmetric-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+.dialog-overlay-aware {
+  backdrop-filter: blur(3px);
+}
+
+.card-aware {
+  border-radius: var(--radius-asymmetric-lg);
+  border-width: 1px;
+  box-shadow: var(--shadow-softer);
+}
+
+.select-content-aware {
+  border-radius: var(--radius-asymmetric);
+}
+
+.select-item-aware {
+  border-radius: 4px 2px 4px 2px;
+}
+
+.toast-aware {
+  border-radius: 10px 4px 10px 4px;
 }

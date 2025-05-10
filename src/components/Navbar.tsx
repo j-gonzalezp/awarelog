@@ -3,6 +3,7 @@ import { Link, NavLink } from 'react-router-dom';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import { signOutUser } from '../features/authentication/services/authService';
+
 const Navbar: React.FC = () => {
   const { user } = useAuth();
 
@@ -13,6 +14,8 @@ const Navbar: React.FC = () => {
       console.error('[Navbar] Logout error:', error);
     } else {
       console.log('[Navbar] Logout successful.');
+
+
     }
   };
 
@@ -50,6 +53,18 @@ const Navbar: React.FC = () => {
               }
             >
               Acerca de
+            </NavLink>
+            <NavLink
+              to="/conciencia"
+              className={({ isActive }) =>
+                `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-primary hover:bg-accent'
+                }`
+              }
+            >
+              Conciencia
             </NavLink>
           </div>
           <div className="flex items-center">
