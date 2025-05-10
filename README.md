@@ -53,3 +53,4 @@ export default tseslint.config({
 })
 ```
 # awarelog
+# aware_log
