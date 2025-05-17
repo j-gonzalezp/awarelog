@@ -3,6 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { RegistroDeConciencia, EstadoRegistro } from '../../../types/registro';
+import supabase from '../../../assets/supabase/client';
 // Updated import paths for service functions
 import { fetchIntenciones, updateRegistroStatus, IntentionSortOption } from '../services/coreRegistroService'; // Import IntentionSortOption
 import { getMentorFocusedIntention } from '../services/dataManagementService'; // Import function to get mentor suggestion
@@ -37,18 +38,40 @@ export function IntentionList({ refresher, onIntentionUpdated, triggerGlobalRefr
   // State for the note dialog
   const [noteDialogState, setNoteDialogState] = useState<{ isOpen: boolean; registroId: string | null }>({ isOpen: false, registroId: null });
 
-  const cargarIntenciones = async (currentSortBy: IntentionSortOption) => { // Accept sort parameter
+  const cargarIntenciones = async (currentSortBy: IntentionSortOption) => {
     setIsLoading(true);
     setError(null);
     try {
-      // Pass the sort parameter to fetchIntenciones
-      // Assuming userId is available from context or props if needed by fetchIntenciones
-      const data = await fetchIntenciones(undefined as any, currentSortBy); // Replace undefined as any with actual userId if needed
+      if (!supabase) {
+        console.error('Supabase client is not initialized in IntentionList.');
+        setError('Error de configuración: No se pudo conectar con el servicio.');
+        setIntenciones([]);
+        return;
+      }
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.error('Error obteniendo sesión en IntentionList:', sessionError);
+        setError('Error al obtener la sesión del usuario para cargar intenciones.');
+        setIntenciones([]);
+        return;
+      }
+
+      if (!sessionData.session) {
+        console.warn('Usuario no autenticado en IntentionList. No se cargarán intenciones.');
+        setIntenciones([]);
+        // Consider setting a specific error message for unauthenticated users if desired
+        // setError("Usuario no autenticado. Inicie sesión para ver sus intenciones."); 
+        return; // Stop execution, finally will still run
+      }
+
+      const userId = sessionData.session.user.id;
+      const data = await fetchIntenciones(userId, currentSortBy);
       setIntenciones(data);
     } catch (err) {
       console.error("Error al cargar intenciones:", err);
-      // Set error state based on the type of error
-      setError(err instanceof Error ? err : (typeof err === 'string' ? err : "Ocurrió un error desconocido al cargar intenciones."));
+      const errorMessage = err instanceof Error ? err.message : (typeof err === 'string' ? err : "Ocurrió un error desconocido al cargar intenciones.");
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
