@@ -32,6 +32,7 @@ import { Checkbox } from "../../../components/ui/checkbox";
 import { TagsInput } from '../../../components/ui/tags-input';
 import { CalendarIcon } from "lucide-react";
 import { cn, formatFriendlyDate } from "../../../lib/utils";
+import { es } from 'date-fns/locale';
 import { Textarea } from "../../../components/ui/textarea";
 import {
   Select,
@@ -45,7 +46,7 @@ import { toast } from 'sonner';
 
 import { RegistroDeConciencia, EstadoRegistro } from "../../../types/registro";
 // Updated import path for addRegistro
-import { addRegistro } from "../services/coreRegistroService";
+import { addRegistro, addNota } from "../services/coreRegistroService";
 
 const formSchema = z.object({
   descripcion: z.string().min(1, { message: "La descripción es requerida." }),
@@ -60,6 +61,7 @@ const formSchema = z.object({
   prioridad: z.number().int().nullable().optional().refine(val => val === null || (typeof val === 'number' && val >= 0 && val <= 10), { // Adjusted refinement
     message: "La prioridad debe ser un número entero entre 0 y 10.",
   }),
+  notas_prospectivas: z.string().nullable().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -86,6 +88,7 @@ export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFor
       sin_tiempo_especifico: false,
       sensacion_kinestesica: "",
       prioridad: null, // Reset priority on open
+      notas_prospectivas: "",
     },
   });
 
@@ -108,9 +111,9 @@ export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFor
 
   async function onSubmit(values: FormData) {
     console.log("Formulario enviado:", values);
-    
-    setIsSubmitting(true); // Set submitting state
+    setIsSubmitting(true);
 
+    // 1. Prepare and save the main record (without prospective notes)
     const registroParaGuardar: Partial<RegistroDeConciencia> = {
       descripcion: values.descripcion,
       estado: values.estado,
@@ -120,24 +123,45 @@ export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFor
       lugar_texto_simple: values.lugar_texto_simple || null,
       duracion_estimada_minutos: values.duracion_estimada_minutos === undefined || values.duracion_estimada_minutos === null ? null : Number(values.duracion_estimada_minutos),
       sensacion_kinestesica: values.sensacion_kinestesica || null,
-      prioridad: values.estado === 'Planificado' ? values.prioridad : null, // Include priority only if state is Planificado
+      prioridad: values.estado === 'Planificado' ? values.prioridad : null,
+      // notas_prospectivas is NOT part of RegistroDeConciencia directly
     };
 
     try {
       const nuevoRegistro = await addRegistro(registroParaGuardar);
       console.log("Registro guardado:", nuevoRegistro);
-      toast.success("Momento de conciencia guardado correctamente.");
+      let mainToastMessage = "Momento de conciencia guardado.";
+
+      // 2. If prospective note exists, save it using addNota
+      if (values.notas_prospectivas && values.notas_prospectivas.trim() !== "" && nuevoRegistro.id) {
+        try {
+          await addNota({
+            registro_id: nuevoRegistro.id,
+            texto: values.notas_prospectivas.trim(),
+            tipo_nota: 'Prospectiva',
+            autor: 'Yo', // Default author, adjust if needed
+            privacidad: 'Privada' // Default privacy, adjust if needed
+          });
+          mainToastMessage += " Y nota prospectiva guardada.";
+        } catch (notaError) {
+          console.error("Error al guardar la nota prospectiva:", notaError);
+          toast.error("El registro se guardó, pero falló al guardar la nota prospectiva.");
+          // Continue to show success for the main record if only note failed
+        }
+      }
+      
+      toast.success(mainToastMessage);
       setIsOpen(false);
-      form.reset();
+      form.reset(); // This will also reset notas_prospectivas in the form
       if (onRegistroGuardado) {
         onRegistroGuardado();
       }
     } catch (error) {
-      console.error("Error al guardar el registro:", error);
-      const errorMessage = error instanceof Error ? error.message : "No se pudo guardar. Intenta de nuevo.";
+      console.error("Error al guardar el registro principal:", error);
+      const errorMessage = error instanceof Error ? error.message : "No se pudo guardar el registro. Intenta de nuevo.";
       toast.error(errorMessage);
     } finally {
-      setIsSubmitting(false); // Reset submitting state
+      setIsSubmitting(false);
     }
   }
 
@@ -154,6 +178,7 @@ export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFor
         sin_tiempo_especifico: false,
         sensacion_kinestesica: "",
         prioridad: null, // Reset priority on open
+        notas_prospectivas: "",
       });
        setIsSubmitting(false); // Also reset submitting state on open
     }
@@ -182,6 +207,24 @@ export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFor
                     <Textarea
                       placeholder="¿Qué fluye por tu conciencia?"
                       {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="notas_prospectivas"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notas Prospectivas (Opcional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Añade notas para el futuro sobre esta intención..."
+                      {...field}
+                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <FormMessage />
@@ -296,7 +339,7 @@ export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFor
                         onSelect={(selectedDate) => {
                           if (selectedDate) {
                             const newDateTime = new Date(selectedDate);
-                            const previousTime = field.value instanceof Date ? field.value : new Date();
+                            const previousTime = field.value instanceof Date ? field.value : new Date(); 
                             
                             newDateTime.setHours(previousTime.getHours());
                             newDateTime.setMinutes(previousTime.getMinutes());
@@ -309,9 +352,13 @@ export function RegistroFormDialog({ children, onRegistroGuardado }: RegistroFor
                           }
                         }}
                         disabled={(date) =>
-                          date > new Date() || date < new Date("1900-01-01")
+                          date < new Date("1900-01-01") // Allow future dates
                         }
+                        locale={es} // Add Spanish locale
                         initialFocus
+                        captionLayout="dropdown-buttons" // Improve navigation
+                        fromYear={new Date().getFullYear() - 10} // Example: 10 years back
+                        toYear={new Date().getFullYear() + 10}   // Example: 10 years forward
                       />
                     </PopoverContent>
                   </Popover>
